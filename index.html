@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.webmanifest">
+<title>FantaAsta Smart 2026/27</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f4f6f8;--card:#fff;--ink:#111827;--muted:#667085;--line:#e2e8f0;--dark:#111827}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:980px;margin:auto;padding:14px 12px 40px}
+.hero{background:linear-gradient(135deg,#111827,#283548);color:white;border-radius:18px;padding:16px;margin-bottom:10px}
+.hero h1{font-size:23px;margin:0 0 3px}.hero p{margin:0;color:#d8dee9;font-size:13px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.box,.player{background:var(--card);border:1px solid var(--line);border-radius:15px}
+.box{padding:11px}.label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.value{font-size:20px;font-weight:800;margin-top:2px}
+#budget{font-weight:800;width:82px}
+input,select,button{font:inherit;border:1px solid #cbd5e1;border-radius:11px;background:white;min-height:44px;padding:0 10px;color:var(--ink)}
+button{cursor:pointer}
+.filters{display:grid;grid-template-columns:minmax(180px,2fr) repeat(4,minmax(105px,1fr));gap:7px;margin:11px 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px}
+.legend span,.badge{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:4px 7px;background:white;white-space:nowrap}
+.meta{font-size:12px;color:var(--muted);margin-bottom:7px}
+.player{padding:11px;margin:7px 0;transition:.15s}
+.player.mine{border-color:#86d3ac;background:#f0fdf4}.player.other{opacity:.66;background:#f8fafc}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.info{min-width:0;flex:1}.nameLine{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.name{font-weight:850;font-size:17px}
+.role{font-weight:900;color:white;border:0}.rp{background:#7c3aed}.rd{background:#2563eb}.rc{background:#d97706}.ra{background:#dc2626}
+.titTit{background:#dcfce7;border-color:#86efac}.titT{background:#dbeafe;border-color:#93c5fd}.titB{background:#fef3c7;border-color:#fcd34d}.titR{background:#f1f5f9}
+.icons{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.feature{font-size:12px;background:#f8fafc;border:1px solid var(--line);border-radius:9px;padding:4px 6px}
+.quote{margin-top:5px;color:var(--muted);font-size:12px}
+.actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.price{width:78px}
+.mineBtn{font-weight:700}.otherBtn{font-weight:700}
+.details{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;font-size:12px;color:#475467;display:none;line-height:1.4}
+.player.open .details{display:block}
+.detailsBtn{min-height:36px;font-size:12px}
+.status{font-size:12px;font-weight:700}.status.free{color:#15803d}.status.mineS{color:#047857}.status.otherS{color:#64748b}
+.empty{padding:20px;text-align:center;color:var(--muted)}
+.notice{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.4}
+@media(max-width:760px){.filters{grid-template-columns:1fr 1fr}.filters #search{grid-column:1/-1}.summary{grid-template-columns:1fr 1fr}.row{flex-direction:column;align-items:stretch}.actions{width:100%}.actions button{flex:1}.name{font-size:16px}}
+</style>
+</head>
+<body><main>
+<section class="hero">
+  <h1>⚽ FantaAsta Smart 2026/27</h1>
+  <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p>
+</section>
+
+<section class="summary">
+ <div class="box"><div class="label">💰 Budget</div><input id="budget" type="number" min="1" value="500"></div>
+ <div class="box"><div class="label">🧾 Spesi</div><div id="spent" class="value">0 cr</div></div>
+ <div class="box"><div class="label">💵 Residui</div><div id="remaining" class="value">500 cr</div></div>
+ <div class="box"><div class="label">👕 Mia rosa</div><div id="mycount" class="value">0</div></div>
+</section>
+
+<div class="legend">
+ <span>🎯 1° rigorista</span><span>🥈 alternativa rigori</span><span>🟢 titolarissimo</span><span>🔵 titolare</span><span>🟡 ballottaggio</span><span>⚪ riserva</span>
+</div>
+
+<section class="filters">
+ <input id="search" type="search" placeholder="🔎 Cerca giocatore o squadra">
+ <select id="role"><option value="">Tutti i ruoli</option><option value="P">🧤 Portieri</option><option value="D">🛡️ Difensori</option><option value="C">🎛️ Centrocampisti</option><option value="A">⚡ Attaccanti</option></select>
+ <select id="team"><option value="">Tutte le squadre</option></select>
+ <select id="tit"><option value="">Tutte le titolarità</option><option>Titolarissimo</option><option>Titolare</option><option>Ballottaggio</option><option>Riserva</option><option value="N/D">N/D</option></select>
+ <select id="state"><option value="available">🟢 Disponibili</option><option value="mine">✅ Miei</option><option value="other">❌ Presi da altri</option><option value="all">Tutti</option></select>
+</section>
+
+<div class="meta"><span id="loading">Caricamento dati…</span> · <span id="shown">0</span> risultati</div>
+<div id="list"></div>
+<div class="notice">Le gerarchie (in particolare rigoristi e titolarità) possono cambiare. I dati dell'asta vengono salvati localmente sul dispositivo. Alla prima apertura serve internet; poi l'app conserva i dati scaricati.</div>
+
+<script>
+const SOURCE='https://raw.githubusercontent.com/darioschioppi/fantacalcio-2026-27/refs/heads/master/excel_dario_data.js';
+const PRIMARY={"Atalanta": ["Kessie", "Scamacca"], "Bologna": ["Orsolini"], "Cagliari": ["Nzola", "Fazzini"], "Como": ["Da Cunha"], "Fiorentina": ["Mastantuono", "Pellegrino M."], "Frosinone": ["Schmid"], "Genoa": ["Colombo"], "Inter": ["Calhanoglu"], "Juventus": ["Kolo Muani", "Locatelli", "Woltemade"], "Lazio": ["Zaccagni", "Taylor K.", "Pinamonti"], "Lecce": ["Geubbels"], "Milan": ["Ramos G.", "Pulisic"], "Monza": ["Pessina"], "Napoli": ["De Bruyne", "Hojlund"], "Parma": ["Tourè E.", "Toure E.", "El Bilal Toure"], "Roma": ["Dybala", "Malen"], "Sassuolo": ["Berardi"], "Torino": ["Vlasic"], "Udinese": ["Davis K."], "Venezia": ["Busio"]};
+const SECONDARY={"Atalanta": ["Samardzic", "Ederson D.S.", "De Ketelaere", "Krstovic"], "Bologna": ["Dovbyk", "Bernardeschi", "Ferguson"], "Cagliari": ["Borrelli", "Deiola", "Mina"], "Como": ["Kean", "Douvikas", "Paz N.", "Baturina"], "Fiorentina": ["Beto"], "Frosinone": ["Calò", "Calo", "Bobcek"], "Genoa": ["Messias", "Vitinha O.", "Baldanzi", "Ostigard"], "Inter": ["Zielinski", "Martinez L."], "Juventus": ["Yildiz"], "Lazio": ["Cataldi"], "Lecce": ["Stulic", "Pierotti", "Berisha"], "Milan": ["Modric"], "Monza": ["Cutrone"], "Napoli": ["Politano"], "Parma": ["Nesta Elphege", "Elphege"], "Roma": ["Pellegrini Lo.", "Soulè", "Soule", "Castro S."], "Sassuolo": ["Esposito Se.", "Laurientè", "Lauriente", "Bowie"], "Torino": ["Kulenovic", "Zapata", "Rodriguez R."], "Udinese": ["Solet", "Ekkelenkamp"], "Venezia": ["Rrahmani A.", "Adams A.", "Adorante"]};
+const $=id=>document.getElementById(id);
+let players=[];
+
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function penLevel(p){
+ const team=p.team, n=norm(p.name);
+ const hit=(arr)=>arr&&arr.some(x=>{let a=norm(x);return n===a||n.includes(a)||a.includes(n)});
+ if(hit(PRIMARY[team])) return 1;
+ if(hit(SECONDARY[team])) return 2;
+ return 0;
+}
+function roleIcon(r){return r==='P'?'🧤':r==='D'?'🛡️':r==='C'?'🎛️':'⚡'}
+function titIcon(t){return t==='Titolarissimo'?'🟢':t==='Titolare'?'🔵':t==='Ballottaggio'?'🟡':t==='Riserva'?'⚪':'◽'}
+function titClass(t){return t==='Titolarissimo'?'titTit':t==='Titolare'?'titT':t==='Ballottaggio'?'titB':'titR'}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function parseData(txt){
+ const start=txt.indexOf('const EXCEL_DARIO_DATA =');
+ if(start<0) throw Error('Formato dati non riconosciuto');
+ const a=txt.indexOf('[',start), b=txt.lastIndexOf('];');
+ if(a<0||b<a) throw Error('Array non trovato');
+ const raw=Function('"use strict";return '+txt.slice(a,b+1))();
+ return raw.map((x,i)=>({
+   key:x[0]+'|'+x[1],name:x[0],team:x[1],role:x[2],age:x[3],tit:x[4],
+   quote:Number(x[5])||1,fvm:Number(x[6])||0,pv:x[7],mv:x[8],fm:x[9],
+   desc:x[16]||'',state:'available',price:0
+ }));
+}
+function auctionSaved(){try{return JSON.parse(localStorage.getItem('fantaAuctionV2')||'{}')}catch{return {}}}
+function applySaved(){
+ const a=auctionSaved();
+ players.forEach(p=>{const s=a[p.key];if(s){p.state=s.state||'available';p.price=Number(s.price)||0}});
+ $('budget').value=localStorage.getItem('fantaBudgetV2')||500;
+}
+function save(){
+ const o={}; players.forEach(p=>{if(p.state!=='available'||p.price)o[p.key]={state:p.state,price:p.price}});
+ localStorage.setItem('fantaAuctionV2',JSON.stringify(o));
+ localStorage.setItem('fantaBudgetV2',String(Math.max(1,Number($('budget').value)||500)));
+}
+async function load(){
+ let txt='';
+ try{
+   const r=await fetch(SOURCE,{cache:'no-store'}); if(!r.ok)throw Error();
+   txt=await r.text(); localStorage.setItem('fantaSmartDataV3',txt);
+ }catch(e){txt=localStorage.getItem('fantaSmartDataV3')||''}
+ if(!txt){$('loading').textContent='⚠️ Dati non disponibili: apri una volta con internet';return}
+ try{
+   players=parseData(txt); applySaved(); setupTeams(); render();
+   $('loading').textContent='✅ '+players.length+' giocatori caricati';
+ }catch(e){$('loading').textContent='⚠️ Errore lettura dati'}
+}
+function setupTeams(){
+ const teams=[...new Set(players.map(p=>p.team))].sort();
+ $('team').innerHTML='<option value="">Tutte le squadre</option>'+teams.map(t=>`<option>${esc(t)}</option>`).join('');
+}
+function summary(){
+ const spent=players.filter(p=>p.state==='mine').reduce((a,p)=>a+p.price,0);
+ const b=Math.max(1,Number($('budget').value)||500);
+ $('spent').textContent=spent+' cr'; $('remaining').textContent=Math.max(0,b-spent)+' cr';
+ $('mycount').textContent=players.filter(p=>p.state==='mine').length;
+}
+function render(){
+ const q=norm($('search').value), rr=$('role').value, tt=$('team').value, ti=$('tit').value, st=$('state').value;
+ let rows=players.filter(p=>(!q||norm(p.name+' '+p.team).includes(q))&&(!rr||p.role===rr)&&(!tt||p.team===tt)&&(!ti||p.tit===ti)&&(st==='all'||p.state===st));
+ rows.sort((a,b)=>b.fvm-a.fvm||b.quote-a.quote||a.name.localeCompare(b.name));
+ $('shown').textContent=rows.length; $('list').innerHTML='';
+ if(!rows.length){$('list').innerHTML='<div class="empty">Nessun giocatore trovato.</div>';summary();return}
+ for(const p of rows){
+   const pen=penLevel(p);
+   const el=document.createElement('article'); el.className='player '+(p.state==='mine'?'mine':p.state==='other'?'other':'');
+   const status=p.state==='mine'?'<span class="status mineS">✅ MIO</span>':p.state==='other'?'<span class="status otherS">❌ PRESO</span>':'<span class="status free">🟢 LIBERO</span>';
+   const penHtml=pen===1?'<span class="feature">🎯 1° rigorista</span>':pen===2?'<span class="feature">🥈 alternativa rigori</span>':'';
+   const piazzati=/piazzat|punizion|corner/i.test(p.desc)?'<span class="feature">🦶 piazzati</span>':'';
+   const cons=/consigliat|puntare|prendere ad occhi chiusi/i.test(p.desc)&&!/sconsigliat/i.test(p.desc)?'<span class="feature">⭐ interessante</span>':'';
+   el.innerHTML=`<div class="row">
+    <div class="info">
+      <div class="nameLine"><span class="name">${esc(p.name)}</span><span class="badge role r${p.role.toLowerCase()}">${roleIcon(p.role)} ${p.role}</span><span class="badge ${titClass(p.tit)}">${titIcon(p.tit)} ${esc(p.tit)}</span></div>
+      <div class="icons">${penHtml}${piazzati}${cons}<span class="feature">🏷️ Qt ${p.quote}</span><span class="feature">📊 FVM500 ${Math.round(p.fvm)}</span></div>
+      <div class="quote">${esc(p.team)} · ${status}${p.price?' · pagato '+p.price+' cr':''}</div>
+    </div>
+    <div class="actions">
+      <input class="price" type="number" min="0" placeholder="Prezzo" value="${p.price||''}" aria-label="Prezzo ${esc(p.name)}">
+      <button class="mineBtn" data-a="mine">✅ Mio</button>
+      <button class="otherBtn" data-a="other">❌ Altri</button>
+      <button data-a="available">↩</button>
+      <button class="detailsBtn" data-detail="1">ℹ️</button>
+    </div>
+   </div>
+   <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${p.mv!=null?' · <b>MV 25/26:</b> '+p.mv:''}${p.fm!=null?' · <b>FM 25/26:</b> '+p.fm:''}</div>`;
+   const price=el.querySelector('.price');
+   el.querySelectorAll('[data-a]').forEach(btn=>btn.addEventListener('click',()=>{p.state=btn.dataset.a;p.price=Math.max(0,Number(price.value)||0);save();render()}));
+   price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
+   el.querySelector('[data-detail]').addEventListener('click',()=>el.classList.toggle('open'));
+   $('list').appendChild(el);
+ }
+ summary();
+}
+['search','role','team','tit','state'].forEach(id=>$(id).addEventListener('input',render));
+$('budget').addEventListener('input',()=>{save();summary()});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+load();
+</script>
+</main></body></html>

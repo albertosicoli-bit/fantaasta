@@ -1,0 +1,9 @@
+{
+  "name": "FantaAsta Smart 2026/27",
+  "short_name": "FantaAsta",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#111827",
+  "icons": []
+}
