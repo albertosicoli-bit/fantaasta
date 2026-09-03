@@ -517,6 +517,8 @@ function render(){
        <span class="statpill ${presClass(Number(s.pg25))}">🎮 ${s.pg25} pres. 25/26</span>
        ${s.fm25!=null?`<span class="statpill fmGood">⭐ FM ${Number(s.fm25).toFixed(2)}</span>`:''}
        ${s.mv25!=null?`<span class="statpill">📊 MV ${Number(s.mv25).toFixed(2)}</span>`:''}
+       ${s.gol25!=null?`<span class="statpill">⚽ Gol ${Number(s.gol25)}</span>`:''}
+       ${s.ass25!=null?`<span class="statpill">🅰️ Assist ${Number(s.ass25)}</span>`:''}
        <span class="statpill ${c.cls}">🩹 stop/disponibilità: ${c.label}</span>
      </div><div class="presbar" title="${pct}% delle 38 giornate con voto/presenza"><span style="width:${pct}%"></span></div>`;
    }else{
@@ -541,7 +543,7 @@ function render(){
       <button class="detailsBtn" data-detail="1">ℹ️</button>
     </div>
    </div>
-   <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${s&&s.pg25!=null?' · <b>Presenze 25/26:</b> '+s.pg25+'/38':''}${s&&s.fm25!=null?' · <b>Fantamedia 25/26:</b> '+Number(s.fm25).toFixed(2):''}<br><span style="font-size:11px">🩹 L'indicatore stop/disponibilità è un proxy basato sulle presenze 2025/26: non è uno storico medico degli infortuni.</span></div>`;
+   <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${s&&s.pg25!=null?' · <b>Presenze 25/26:</b> '+s.pg25+'/38':''}${s&&s.fm25!=null?' · <b>Fantamedia 25/26:</b> '+Number(s.fm25).toFixed(2):''}${s&&s.gol25!=null?' · <b>Gol 25/26:</b> '+Number(s.gol25):''}${s&&s.ass25!=null?' · <b>Assist 25/26:</b> '+Number(s.ass25):''}<br><span style="font-size:11px">🩹 L'indicatore stop/disponibilità è un proxy basato sulle presenze 2025/26: non è uno storico medico degli infortuni.</span></div>`;
    const price=el.querySelector('.price');
    const ownerSel=el.querySelector('.ownerSelect');
    el.querySelectorAll('[data-a]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -631,6 +633,8 @@ function exportCSV(){
       'Presenze 25/26',
       'Fantamedia 25/26',
       'Media voto 25/26',
+      'Gol 25/26',
+      'Assist 25/26',
       'Rigorista'
     ]);
 
@@ -649,6 +653,8 @@ function exportCSV(){
           st?.pg25 ?? '',
           st?.fm25 ?? '',
           st?.mv25 ?? '',
+          st?.gol25 ?? '',
+          st?.ass25 ?? '',
           pen?.primary ? '1° rigorista' : pen?.secondary ? 'Alternativa' : ''
         ]);
       });
