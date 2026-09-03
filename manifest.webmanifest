@@ -1,9 +1,26 @@
 {
+  "id": "/fantaasta/",
   "name": "FantaAsta Smart 2026/27",
   "short_name": "FantaAsta",
-  "start_url": "./index.html",
+  "description": "Assistente personale per l'asta Fantacalcio 2026/27",
+  "start_url": "/fantaasta/",
+  "scope": "/fantaasta/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#f4f6f8",
   "theme_color": "#111827",
-  "icons": []
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
