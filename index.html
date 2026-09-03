@@ -74,12 +74,32 @@ button{cursor:pointer}
 .ownerPlayer{padding:4px 0;border-top:1px dashed #ddd}
 .ownerPlayer:first-child{border-top:0}
 
+
+.summaryOverlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+.summaryOverlay.open{display:flex}
+.summaryPanel{width:min(980px,100%);background:#fff;border-radius:18px;padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.25);margin:auto}
+.summaryTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.summaryTop h2{margin:0;font-size:18px}
+.summaryClose{min-width:42px}
+.auctionGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.auctionOwner{border:1px solid var(--line);border-radius:14px;padding:10px;background:#fafafa}
+.auctionOwnerHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}
+.auctionOwnerName{font-weight:900;font-size:15px}
+.creditBox{text-align:right;font-size:12px;white-space:nowrap}
+.creditRemain{font-weight:900;font-size:15px}
+.roleBlock{margin-top:8px}
+.roleBlockTitle{font-weight:900;font-size:12px;margin-bottom:3px}
+.auctionPlayer{display:flex;justify-content:space-between;gap:8px;border-top:1px dashed #ddd;padding:4px 0;font-size:12px}
+.auctionPlayer:first-of-type{border-top:0}
+.auctionPrice{font-weight:800;white-space:nowrap}
+.emptyRole{font-size:11px;color:#777}
+
 </style>
 </head>
 <body><main>
 <section class="hero">
   <h1>⚽ FantaAsta Smart 2026/27</h1>
-  <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p><div class="installbar"><button id="installBtn" class="installbtn">📲 Installa FantaAsta</button><button id="exportBtn" class="installbtn" style="display:inline-block">📥 Scarica Excel</button><button id="refreshBtn" class="installbtn" style="display:inline-block">🔄 Aggiorna app</button><span id="installHint" class="installhint"></span></div>
+  <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p><div class="installbar"><button id="installBtn" class="installbtn">📲 Installa FantaAsta</button><button id="exportBtn" class="installbtn" style="display:inline-block">📥 Scarica Excel</button><button id="refreshBtn" class="installbtn" style="display:inline-block">🔄 Aggiorna app</button><button id="summaryBtn" class="installbtn" style="display:inline-block">👥 Riepilogo asta</button><span id="installHint" class="installhint"></span></div>
 </section>
 
 <section class="summary">
@@ -108,23 +128,6 @@ button{cursor:pointer}
   <div id="participantList" class="partList"></div>
 </section>
 
-
-<section class="roleSummary">
-  <div class="roleSummaryHead">
-    <div>
-      <div class="label">👥 Riepilogo partecipanti per ruolo</div>
-      <div class="muted">Vedi chi ha preso i giocatori di ogni ruolo e quanto ha speso.</div>
-    </div>
-  </div>
-  <div class="roleTabs">
-    <button type="button" data-role-summary="P">🧤 Portieri</button>
-    <button type="button" data-role-summary="D">🛡️ Difensori</button>
-    <button type="button" data-role-summary="C">🎛️ Centrocampisti</button>
-    <button type="button" data-role-summary="A">⚡ Attaccanti</button>
-    <button type="button" data-role-summary="ALL">Tutti</button>
-  </div>
-  <div id="roleSummaryGrid" class="roleGrid"></div>
-</section>
 
 <div class="legend">
  <span>🎯 1° rigorista</span><span>🥈 alternativa rigori</span><span>🟢 titolarissimo</span><span>🔵 titolare</span><span>🟡 ballottaggio</span><span>⚪ riserva</span>
@@ -184,69 +187,82 @@ function renderParticipants(){
       const n=b.dataset.rm;
       participants=participants.filter(x=>x!==n);
       players.forEach(p=>{ if(p.owner===n){p.owner='Altri';p.state='other';} });
-      saveParticipants(); save(); renderParticipants(); render(); setupRoleSummary();
+      saveParticipants(); save(); renderParticipants(); render(); 
     }));
   }
 }
 
-let summaryRole='P';
 
-function roleLabel(r){
-  return r==='P'?'🧤 Portieri':r==='D'?'🛡️ Difensori':r==='C'?'🎛️ Centrocampisti':r==='A'?'⚡ Attaccanti':'Tutti i ruoli';
-}
-
-function renderRoleSummary(){
-  const grid=$('roleSummaryGrid');
+function renderAuctionSummary(){
+  const grid=$('auctionGrid');
   if(!grid) return;
 
-  document.querySelectorAll('[data-role-summary]').forEach(b=>{
-    b.classList.toggle('active', b.dataset.roleSummary===summaryRole);
-  });
-
+  const budget=Math.max(1,Number($('budget')?.value)||500);
   const owners=[...new Set([
     ...participants,
     ...players.map(p=>p.owner).filter(Boolean).filter(x=>x!=='Altri')
   ])];
-
-  // Include generic "Altri" only if actually used.
   if(players.some(p=>p.owner==='Altri')) owners.push('Altri');
 
-  const cards=owners.map(owner=>{
-    const bought=players
-      .filter(p=>p.owner===owner && (summaryRole==='ALL' || p.role===summaryRole))
-      .sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0) || a.name.localeCompare(b.name));
+  const roleMeta={
+    P:['🧤','Portieri'],
+    D:['🛡️','Difensori'],
+    C:['🎛️','Centrocampisti'],
+    A:['⚡','Attaccanti']
+  };
 
+  grid.innerHTML=owners.map(owner=>{
+    const bought=players.filter(p=>p.owner===owner);
     const spent=bought.reduce((s,p)=>s+(Number(p.price)||0),0);
+    const remain=Math.max(0,budget-spent);
 
-    const rows=bought.length
-      ? bought.map(p=>`<div class="ownerPlayer"><b>${esc(p.name)}</b> <span class="muted">${esc(p.team)}</span>${p.price?` · ${Number(p.price)} cr`:''}</div>`).join('')
-      : `<div class="muted">Nessun giocatore</div>`;
+    const roles=['P','D','C','A'].map(r=>{
+      const list=bought.filter(p=>p.role===r)
+        .sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0) || a.name.localeCompare(b.name));
+      const body=list.length
+        ? list.map(p=>`<div class="auctionPlayer"><span>${esc(p.name)}</span><span class="auctionPrice">${Number(p.price)||0} cr</span></div>`).join('')
+        : `<div class="emptyRole">—</div>`;
+      return `<div class="roleBlock">
+        <div class="roleBlockTitle">${roleMeta[r][0]} ${roleMeta[r][1]} (${list.length})</div>
+        ${body}
+      </div>`;
+    }).join('');
 
-    return `<div class="ownerCard">
-      <div class="ownerTitle"><span>👤 ${esc(owner)}</span><span>${bought.length} · ${spent} cr</span></div>
-      <div class="ownerPlayers">${rows}</div>
+    return `<div class="auctionOwner">
+      <div class="auctionOwnerHead">
+        <div>
+          <div class="auctionOwnerName">👤 ${esc(owner)}</div>
+          <div class="muted">${bought.length} giocatori · ${spent} cr spesi</div>
+        </div>
+        <div class="creditBox">
+          <div class="muted">Residuo</div>
+          <div class="creditRemain">${remain} cr</div>
+        </div>
+      </div>
+      ${roles}
     </div>`;
-  }).join('');
-
-  grid.innerHTML = cards || `<div class="muted">Nessun acquisto registrato.</div>`;
+  }).join('') || `<div class="muted">Nessun partecipante disponibile.</div>`;
 }
 
-function setupRoleSummary(){
-  document.querySelectorAll('[data-role-summary]').forEach(b=>{
-    b.addEventListener('click',()=>{
-      summaryRole=b.dataset.roleSummary;
-      renderRoleSummary();
-    });
-  });
-  renderRoleSummary();
+function openAuctionSummary(){
+  renderAuctionSummary();
+  document.getElementById('summaryOverlay')?.classList.add('open');
 }
+function closeAuctionSummary(){
+  document.getElementById('summaryOverlay')?.classList.remove('open');
+}
+document.getElementById('summaryBtn')?.addEventListener('click',openAuctionSummary);
+document.getElementById('summaryClose')?.addEventListener('click',closeAuctionSummary);
+document.getElementById('summaryOverlay')?.addEventListener('click',e=>{
+  if(e.target?.id==='summaryOverlay') closeAuctionSummary();
+});
 
 function addParticipant(){
   const inp=$('newParticipant'); if(!inp) return;
   const n=inp.value.trim();
   if(!n) return;
   if(!participants.some(x=>norm(x)===norm(n))) participants.push(n);
-  inp.value=''; saveParticipants(); renderParticipants(); render(); renderRoleSummary();
+  inp.value=''; saveParticipants(); renderParticipants(); render(); 
 }
 
 
@@ -415,7 +431,7 @@ function render(){
        if(!who) return;
        p.owner=who;p.state=(who===currentUser?'mine':'other');
      }else if(a==='available'){p.owner='';p.state='available';p.price=0;}
-     save();render();renderRoleSummary();
+     save();render(); if(document.getElementById('summaryOverlay')?.classList.contains('open')) renderAuctionSummary();
    }));
    price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
    el.querySelector('[data-detail]').addEventListener('click',()=>el.classList.toggle('open'));
@@ -429,10 +445,15 @@ $('budget').addEventListener('input',()=>{save();summary()});
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render(); renderRoleSummary();
+ currentUser=e.target.value; saveParticipants(); render(); 
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
+
+
+document.getElementById('budget')?.addEventListener('input',()=>{
+  if(document.getElementById('summaryOverlay')?.classList.contains('open')) renderAuctionSummary();
+});
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
@@ -484,7 +505,7 @@ async function forceAppRefresh(){
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render(); renderRoleSummary();
+ currentUser=e.target.value; saveParticipants(); render(); 
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
@@ -526,4 +547,18 @@ window.addEventListener('appinstalled',()=>{
 
 load();
 </script>
-</main></body></html>
+</main>
+<div id="summaryOverlay" class="summaryOverlay">
+  <div class="summaryPanel">
+    <div class="summaryTop">
+      <div>
+        <h2>👥 Riepilogo asta</h2>
+        <div class="muted">Acquisti, prezzi e credito residuo per partecipante</div>
+      </div>
+      <button id="summaryClose" class="summaryClose">✕</button>
+    </div>
+    <div id="auctionGrid" class="auctionGrid"></div>
+  </div>
+</div>
+
+</body></html>
