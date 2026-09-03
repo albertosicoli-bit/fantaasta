@@ -51,6 +51,17 @@ button{cursor:pointer}
 .empty{padding:20px;text-align:center;color:var(--muted)}
 .installbar{display:flex;gap:8px;align-items:center;margin:10px 0}.installbtn{display:none;background:#fff;color:#111827;border:0;font-weight:850;padding:0 15px}.installhint{font-size:12px;color:#d8dee9}.notice{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.4}
 @media(max-width:760px){.filters{grid-template-columns:1fr 1fr}.filters #search{grid-column:1/-1}.summary{grid-template-columns:1fr 1fr}.row{flex-direction:column;align-items:stretch}.actions{width:100%}.actions button{flex:1}.name{font-size:16px}}
+
+.participants{background:#fff;border:1px solid var(--line);border-radius:15px;padding:11px;margin:10px 0}
+.partHead{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.partControls{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.partControls input{min-width:160px;flex:1}
+.partList{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.partChip{display:inline-flex;align-items:center;gap:5px;background:#f8fafc;border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:12px}
+.partChip button{min-height:24px;padding:0 6px;border-radius:999px;font-size:11px}
+.userSelect{font-weight:800}
+.ownerSelect{min-width:120px}
+
 </style>
 </head>
 <body><main>
@@ -64,6 +75,25 @@ button{cursor:pointer}
  <div class="box"><div class="label">🧾 Spesi</div><div id="spent" class="value">0 cr</div></div>
  <div class="box"><div class="label">💵 Residui</div><div id="remaining" class="value">500 cr</div></div>
  <div class="box"><div class="label">👕 Mia rosa</div><div id="mycount" class="value">0</div></div>
+
+</section>
+
+<section class="participants">
+  <div class="partHead">
+    <div>
+      <div class="label">👤 Utente attivo</div>
+      <select id="currentUser" class="userSelect">
+        <option value="Alberto">Alberto</option>
+        <option value="Carlo">Carlo</option>
+      </select>
+    </div>
+    <div class="muted">“Mio” assegna il giocatore all’utente attivo.</div>
+  </div>
+  <div class="partControls">
+    <input id="newParticipant" type="text" placeholder="➕ Nome altro partecipante">
+    <button id="addParticipant">Aggiungi</button>
+  </div>
+  <div id="participantList" class="partList"></div>
 </section>
 
 <div class="legend">
@@ -89,6 +119,53 @@ const PRIMARY={"Atalanta": ["Kessie", "Scamacca"], "Bologna": ["Orsolini"], "Cag
 const SECONDARY={"Atalanta": ["Samardzic", "Ederson D.S.", "De Ketelaere", "Krstovic"], "Bologna": ["Dovbyk", "Bernardeschi", "Ferguson"], "Cagliari": ["Borrelli", "Deiola", "Mina"], "Como": ["Kean", "Douvikas", "Paz N.", "Baturina"], "Fiorentina": ["Beto"], "Frosinone": ["Calò", "Calo", "Bobcek"], "Genoa": ["Messias", "Vitinha O.", "Baldanzi", "Ostigard"], "Inter": ["Zielinski", "Martinez L."], "Juventus": ["Yildiz"], "Lazio": ["Cataldi"], "Lecce": ["Stulic", "Pierotti", "Berisha"], "Milan": ["Modric"], "Monza": ["Cutrone"], "Napoli": ["Politano"], "Parma": ["Nesta Elphege", "Elphege"], "Roma": ["Pellegrini Lo.", "Soulè", "Soule", "Castro S."], "Sassuolo": ["Esposito Se.", "Laurientè", "Lauriente", "Bowie"], "Torino": ["Kulenovic", "Zapata", "Rodriguez R."], "Udinese": ["Solet", "Ekkelenkamp"], "Venezia": ["Rrahmani A.", "Adams A.", "Adorante"]};
 const $=id=>document.getElementById(id);
 let players=[];
+
+let participants=['Alberto','Carlo'];
+let currentUser='Alberto';
+
+function loadParticipants(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('fantaParticipantsV8')||'[]');
+    if(Array.isArray(saved)){
+      participants=['Alberto','Carlo',...saved.filter(x=>x && !['Alberto','Carlo'].includes(x))];
+    }
+  }catch(e){}
+  const qp=new URLSearchParams(location.search).get('user');
+  currentUser=(qp && participants.includes(qp)) ? qp : (localStorage.getItem('fantaCurrentUserV8')||'Alberto');
+  if(!participants.includes(currentUser)) currentUser='Alberto';
+}
+function saveParticipants(){
+  const custom=participants.filter(x=>!['Alberto','Carlo'].includes(x));
+  localStorage.setItem('fantaParticipantsV8',JSON.stringify(custom));
+  localStorage.setItem('fantaCurrentUserV8',currentUser);
+}
+function renderParticipants(){
+  const sel=$('currentUser');
+  if(sel){
+    sel.innerHTML=participants.filter(x=>['Alberto','Carlo'].includes(x)).map(x=>`<option value="${esc(x)}"${x===currentUser?' selected':''}>${esc(x)}</option>`).join('');
+  }
+  const list=$('participantList');
+  if(list){
+    list.innerHTML=participants.map(x=>{
+      const removable=!['Alberto','Carlo'].includes(x);
+      return `<span class="partChip">👤 ${esc(x)}${removable?` <button data-rm="${esc(x)}">×</button>`:''}</span>`;
+    }).join('');
+    list.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{
+      const n=b.dataset.rm;
+      participants=participants.filter(x=>x!==n);
+      players.forEach(p=>{ if(p.owner===n){p.owner='Altri';p.state='other';} });
+      saveParticipants(); save(); renderParticipants(); render();
+    }));
+  }
+}
+function addParticipant(){
+  const inp=$('newParticipant'); if(!inp) return;
+  const n=inp.value.trim();
+  if(!n) return;
+  if(!participants.some(x=>norm(x)===norm(n))) participants.push(n);
+  inp.value=''; saveParticipants(); renderParticipants(); render();
+}
+
 
 let statsMap=new Map();
 
@@ -142,13 +219,23 @@ function parseData(txt){
 function auctionSaved(){try{return JSON.parse(localStorage.getItem('fantaAuctionV2')||'{}')}catch{return {}}}
 function applySaved(){
  const a=auctionSaved();
- players.forEach(p=>{const s=a[p.key];if(s){p.state=s.state||'available';p.price=Number(s.price)||0}});
+ players.forEach(p=>{
+   p.owner='';
+   const s=a[p.key];
+   if(s){
+     p.state=s.state||'available';
+     p.price=Number(s.price)||0;
+     p.owner=s.owner||((p.state==='mine')?'Alberto':(p.state==='other'?'Altri':''));
+     if(p.owner && p.owner!=='Altri' && !participants.includes(p.owner)) participants.push(p.owner);
+   }
+ });
  $('budget').value=localStorage.getItem('fantaBudgetV2')||500;
 }
 function save(){
- const o={}; players.forEach(p=>{if(p.state!=='available'||p.price)o[p.key]={state:p.state,price:p.price}});
+ const o={}; players.forEach(p=>{if(p.state!=='available'||p.price||p.owner)o[p.key]={state:p.state,price:p.price,owner:p.owner||''}});
  localStorage.setItem('fantaAuctionV2',JSON.stringify(o));
  localStorage.setItem('fantaBudgetV2',String(Math.max(1,Number($('budget').value)||500)));
+ saveParticipants();
 }
 async function load(){
  let txt='', stxt='';
@@ -163,7 +250,7 @@ async function load(){
  }
  if(!txt){$('loading').textContent='⚠️ Dati non disponibili: apri una volta con internet';return}
  try{
-   players=parseData(txt);
+   players=parseData(txt); loadParticipants();
    if(stxt){
      try{
        const raw=parseStats(stxt);
@@ -173,7 +260,7 @@ async function load(){
        }));
      }catch(e){}
    }
-   applySaved(); setupTeams(); render();
+   applySaved(); setupTeams(); renderParticipants(); render();
    $('loading').textContent='✅ '+players.length+' giocatori caricati';
  }catch(e){$('loading').textContent='⚠️ Errore lettura dati'}
 }
@@ -182,21 +269,21 @@ function setupTeams(){
  $('team').innerHTML='<option value="">Tutte le squadre</option>'+teams.map(t=>`<option>${esc(t)}</option>`).join('');
 }
 function summary(){
- const spent=players.filter(p=>p.state==='mine').reduce((a,p)=>a+p.price,0);
+ const spent=players.filter(p=>p.owner===currentUser).reduce((a,p)=>a+(Number(p.price)||0),0);
  const b=Math.max(1,Number($('budget').value)||500);
  $('spent').textContent=spent+' cr'; $('remaining').textContent=Math.max(0,b-spent)+' cr';
- $('mycount').textContent=players.filter(p=>p.state==='mine').length;
+ $('mycount').textContent=players.filter(p=>p.owner===currentUser).length;
 }
 function render(){
  const q=norm($('search').value), rr=$('role').value, tt=$('team').value, ti=$('tit').value, st=$('state').value;
- let rows=players.filter(p=>(!q||norm(p.name+' '+p.team).includes(q))&&(!rr||p.role===rr)&&(!tt||p.team===tt)&&(!ti||p.tit===ti)&&(st==='all'||p.state===st));
+ let rows=players.filter(p=>(!q||norm(p.name+' '+p.team).includes(q))&&(!rr||p.role===rr)&&(!tt||p.team===tt)&&(!ti||p.tit===ti)&&(st==='all'||(st==='available'&&!p.owner)||(st==='mine'&&p.owner===currentUser)||(st==='other'&&p.owner&&p.owner!==currentUser)));
  rows.sort((a,b)=>b.fvm-a.fvm||b.quote-a.quote||a.name.localeCompare(b.name));
  $('shown').textContent=rows.length; $('list').innerHTML='';
  if(!rows.length){$('list').innerHTML='<div class="empty">Nessun giocatore trovato.</div>';summary();return}
  for(const p of rows){
    const pen=penLevel(p);
    const el=document.createElement('article'); el.className='player '+(p.state==='mine'?'mine':p.state==='other'?'other':'');
-   const status=p.state==='mine'?'<span class="status mineS">✅ MIO</span>':p.state==='other'?'<span class="status otherS">❌ PRESO</span>':'<span class="status free">🟢 LIBERO</span>';
+   const status=p.owner===currentUser?'<span class="status mineS">✅ MIO</span>':p.owner?'<span class="status otherS">❌ '+esc(p.owner)+'</span>':'<span class="status free">🟢 LIBERO</span>';
    const penHtml=pen===1?'<span class="feature">🎯 1° rigorista</span>':pen===2?'<span class="feature">🥈 alternativa rigori</span>':'';
    const piazzati=/piazzat|punizion|corner/i.test(p.desc)?'<span class="feature">🦶 piazzati</span>':'';
    const cons=/consigliat|puntare|prendere ad occhi chiusi/i.test(p.desc)&&!/sconsigliat/i.test(p.desc)?'<span class="feature">⭐ interessante</span>':'';
@@ -224,14 +311,29 @@ function render(){
     <div class="actions">
       <input class="price" type="number" min="0" placeholder="Prezzo" value="${p.price||''}" aria-label="Prezzo ${esc(p.name)}">
       <button class="mineBtn" data-a="mine">✅ Mio</button>
-      <button class="otherBtn" data-a="other">❌ Altri</button>
+      <select class="ownerSelect" aria-label="Assegna ${esc(p.name)}">
+        <option value="">Altri…</option>
+        ${participants.filter(x=>x!==currentUser).map(x=>`<option value="${esc(x)}"${p.owner===x?' selected':''}>${esc(x)}</option>`).join('')}
+      </select>
+      <button class="otherBtn" data-a="assign">Assegna</button>
       <button data-a="available">↩</button>
       <button class="detailsBtn" data-detail="1">ℹ️</button>
     </div>
    </div>
    <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${s&&s.pg25!=null?' · <b>Presenze 25/26:</b> '+s.pg25+'/38':''}${s&&s.fm25!=null?' · <b>Fantamedia 25/26:</b> '+Number(s.fm25).toFixed(2):''}<br><span style="font-size:11px">🩹 L'indicatore stop/disponibilità è un proxy basato sulle presenze 2025/26: non è uno storico medico degli infortuni.</span></div>`;
    const price=el.querySelector('.price');
-   el.querySelectorAll('[data-a]').forEach(btn=>btn.addEventListener('click',()=>{p.state=btn.dataset.a;p.price=Math.max(0,Number(price.value)||0);save();render()}));
+   const ownerSel=el.querySelector('.ownerSelect');
+   el.querySelectorAll('[data-a]').forEach(btn=>btn.addEventListener('click',()=>{
+     const a=btn.dataset.a;
+     p.price=Math.max(0,Number(price.value)||0);
+     if(a==='mine'){p.owner=currentUser;p.state='mine';}
+     else if(a==='assign'){
+       const who=ownerSel.value;
+       if(!who) return;
+       p.owner=who;p.state=(who===currentUser?'mine':'other');
+     }else if(a==='available'){p.owner='';p.state='available';p.price=0;}
+     save();render();
+   }));
    price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
    el.querySelector('[data-detail]').addEventListener('click',()=>el.classList.toggle('open'));
    $('list').appendChild(el);
@@ -240,6 +342,15 @@ function render(){
 }
 ['search','role','team','tit','state'].forEach(id=>$(id).addEventListener('input',render));
 $('budget').addEventListener('input',()=>{save();summary()});
+
+loadParticipants();
+renderParticipants();
+document.getElementById('currentUser')?.addEventListener('change',e=>{
+ currentUser=e.target.value; saveParticipants(); render();
+});
+document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
+document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
+
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 
@@ -255,7 +366,7 @@ function exportExcel(){
     const pen=penLevel(p);
     rows.push([
       p.name,p.team,p.role,p.tit,p.quote,Math.round(p.fvm),
-      p.state==='mine'?'MIO':p.state==='other'?'PRESO DA ALTRI':'LIBERO',
+      p.owner?(p.owner===currentUser?'MIO ('+currentUser+')':'PRESO DA '+p.owner):'LIBERO',
       p.price||'',s?.pg25??'',s?.mv25??'',s?.fm25??'',
       pen===1?'1° rigorista':pen===2?'Alternativa':'',
       p.desc||''
@@ -268,7 +379,7 @@ function exportExcel(){
   rows.push(['Budget',budget]);
   rows.push(['Spesi',spent]);
   rows.push(['Residui',Math.max(0,budget-spent)]);
-  rows.push(['Giocatori acquistati',players.filter(p=>p.state==='mine').length]);
+  rows.push(['Utente attivo',currentUser]); rows.push(['Giocatori acquistati',players.filter(p=>p.owner===currentUser).length]);
   const csv='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');
@@ -286,7 +397,16 @@ async function forceAppRefresh(){
   const b=document.getElementById('refreshBtn');
   if(b){b.textContent='⏳ Aggiorno…';b.disabled=true;}
   try{
-    if('serviceWorker' in navigator){
+    
+loadParticipants();
+renderParticipants();
+document.getElementById('currentUser')?.addEventListener('change',e=>{
+ currentUser=e.target.value; saveParticipants(); render();
+});
+document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
+document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
+
+if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
       for(const reg of regs){ try{await reg.update();}catch(e){} }
     }
