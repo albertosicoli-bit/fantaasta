@@ -94,9 +94,90 @@ button{cursor:pointer}
 .auctionPrice{font-weight:800;white-space:nowrap}
 .emptyRole{font-size:11px;color:#777}
 
+
+.budgetSidebar{
+  position:fixed;
+  left:12px;
+  top:95px;
+  width:200px;
+  max-height:calc(100vh - 120px);
+  overflow:auto;
+  background:#ffffff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:10px;
+  box-shadow:0 10px 30px rgba(15,23,42,.10);
+  z-index:50;
+}
+.budgetSidebarTitle{
+  font-weight:900;
+  font-size:13px;
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.budgetPerson{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  padding:7px 6px;
+  border-top:1px solid #eef0f3;
+  font-size:12px;
+}
+.budgetPerson:first-child{border-top:0}
+.budgetPersonName{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.budgetPersonRemain{font-weight:900;white-space:nowrap}
+.budgetPerson.active{background:#f7f7fb;border-radius:9px}
+.budgetMini{font-size:10px;color:#777;display:block;font-weight:500}
+@media (max-width:1180px){
+  .budgetSidebar{
+    position:static;
+    width:auto;
+    max-height:none;
+    margin:10px 0;
+    box-shadow:none;
+  }
+}
+@media (min-width:1181px){
+  body{padding-left:224px}
+}
+
+
+.budgetRoles{
+  display:flex;
+  gap:4px;
+  flex-wrap:wrap;
+  margin-top:4px;
+}
+.budgetRoleTag{
+  font-size:10px;
+  padding:2px 5px;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  background:#fff;
+  white-space:nowrap;
+}
+.summaryClose{
+  min-width:42px;
+  min-height:42px;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+  position:relative;
+  z-index:10001;
+}
+
 </style>
 </head>
-<body><main>
+<body>
+
+<aside id="budgetSidebar" class="budgetSidebar">
+  <div class="budgetSidebarTitle">💰 Residui partecipanti</div>
+  <div id="budgetSidebarList"></div>
+</aside>
+<main>
 <section class="hero">
   <h1>⚽ FantaAsta Smart 2026/27</h1>
   <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p><div class="installbar"><button id="installBtn" class="installbtn">📲 Installa FantaAsta</button><button id="exportBtn" class="installbtn" style="display:inline-block">📥 Scarica Excel</button><button id="refreshBtn" class="installbtn" style="display:inline-block">🔄 Aggiorna app</button><button id="summaryBtn" class="installbtn" style="display:inline-block">👥 Riepilogo asta</button><span id="installHint" class="installhint"></span></div>
@@ -187,7 +268,7 @@ function renderParticipants(){
       const n=b.dataset.rm;
       participants=participants.filter(x=>x!==n);
       players.forEach(p=>{ if(p.owner===n){p.owner='Altri';p.state='other';} });
-      saveParticipants(); save(); renderParticipants(); render(); 
+      saveParticipants(); save(); renderParticipants(); render(); renderBudgetSidebar(); 
     }));
   }
 }
@@ -246,23 +327,64 @@ function renderAuctionSummary(){
 
 function openAuctionSummary(){
   renderAuctionSummary();
-  document.getElementById('summaryOverlay')?.classList.add('open');
+  const o=document.getElementById('summaryOverlay');
+  if(o){
+    o.classList.add('open');
+    document.body.style.overflow='hidden';
+  }
 }
 function closeAuctionSummary(){
-  document.getElementById('summaryOverlay')?.classList.remove('open');
+  const o=document.getElementById('summaryOverlay');
+  if(o) o.classList.remove('open');
+  document.body.style.overflow='';
 }
-document.getElementById('summaryBtn')?.addEventListener('click',openAuctionSummary);
-document.getElementById('summaryClose')?.addEventListener('click',closeAuctionSummary);
-document.getElementById('summaryOverlay')?.addEventListener('click',e=>{
-  if(e.target?.id==='summaryOverlay') closeAuctionSummary();
-});
+
+
+
+function renderBudgetSidebar(){
+  const box=document.getElementById('budgetSidebarList');
+  if(!box) return;
+
+  const budget=Math.max(1,Number(document.getElementById('budget')?.value)||500);
+  const owners=[...new Set([
+    ...participants,
+    ...players.map(p=>p.owner).filter(Boolean).filter(x=>x!=='Altri')
+  ])];
+  if(players.some(p=>p.owner==='Altri')) owners.push('Altri');
+
+  box.innerHTML=owners.map(owner=>{
+    const bought=players.filter(p=>p.owner===owner);
+    const spent=bought.reduce((s,p)=>s+(Number(p.price)||0),0);
+    const remain=budget-spent;
+
+    const counts={
+      P:bought.filter(p=>p.role==='P').length,
+      D:bought.filter(p=>p.role==='D').length,
+      C:bought.filter(p=>p.role==='C').length,
+      A:bought.filter(p=>p.role==='A').length
+    };
+
+    return `<div class="budgetPerson ${owner===currentUser?'active':''}">
+      <div class="budgetPersonName">👤 ${esc(owner)}
+        <span class="budgetMini">${bought.length} gioc. · ${spent} cr spesi</span>
+        <div class="budgetRoles">
+          <span class="budgetRoleTag">🧤 P ${counts.P}</span>
+          <span class="budgetRoleTag">🛡️ D ${counts.D}</span>
+          <span class="budgetRoleTag">🎛️ C ${counts.C}</span>
+          <span class="budgetRoleTag">⚡ A ${counts.A}</span>
+        </div>
+      </div>
+      <div class="budgetPersonRemain">${remain} cr</div>
+    </div>`;
+  }).join('');
+}
 
 function addParticipant(){
   const inp=$('newParticipant'); if(!inp) return;
   const n=inp.value.trim();
   if(!n) return;
   if(!participants.some(x=>norm(x)===norm(n))) participants.push(n);
-  inp.value=''; saveParticipants(); renderParticipants(); render(); 
+  inp.value=''; saveParticipants(); renderParticipants(); render(); renderBudgetSidebar(); 
 }
 
 
@@ -359,7 +481,7 @@ async function load(){
        }));
      }catch(e){}
    }
-   applySaved(); setupTeams(); renderParticipants(); render();
+   applySaved(); setupTeams(); renderParticipants(); render(); renderBudgetSidebar();
    $('loading').textContent='✅ '+players.length+' giocatori caricati';
  }catch(e){$('loading').textContent='⚠️ Errore lettura dati'}
 }
@@ -431,7 +553,7 @@ function render(){
        if(!who) return;
        p.owner=who;p.state=(who===currentUser?'mine':'other');
      }else if(a==='available'){p.owner='';p.state='available';p.price=0;}
-     save();render(); if(document.getElementById('summaryOverlay')?.classList.contains('open')) renderAuctionSummary();
+     save();render();renderBudgetSidebar(); if(document.getElementById('summaryOverlay')?.classList.contains('open')) renderAuctionSummary();
    }));
    price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
    el.querySelector('[data-detail]').addEventListener('click',()=>el.classList.toggle('open'));
@@ -445,16 +567,18 @@ $('budget').addEventListener('input',()=>{save();summary()});
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render(); 
+ currentUser=e.target.value; saveParticipants(); render(); renderBudgetSidebar(); 
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
 
 
 document.getElementById('budget')?.addEventListener('input',()=>{
+  renderBudgetSidebar();
   if(document.getElementById('summaryOverlay')?.classList.contains('open')) renderAuctionSummary();
 });
 
+renderBudgetSidebar();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 
@@ -505,7 +629,7 @@ async function forceAppRefresh(){
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render(); 
+ currentUser=e.target.value; saveParticipants(); render(); renderBudgetSidebar(); 
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
@@ -543,6 +667,28 @@ document.getElementById('installBtn')?.addEventListener('click',async()=>{
 window.addEventListener('appinstalled',()=>{
   const h=document.getElementById('installHint');
   if(h) h.textContent='✅ Installata sulla Home';
+});
+
+
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t && t.closest && t.closest('#summaryBtn')){
+    e.preventDefault();
+    openAuctionSummary();
+    return;
+  }
+  if(t && t.closest && t.closest('#summaryClose')){
+    e.preventDefault();
+    e.stopPropagation();
+    closeAuctionSummary();
+    return;
+  }
+  if(t && t.id==='summaryOverlay'){
+    closeAuctionSummary();
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeAuctionSummary();
 });
 
 load();
