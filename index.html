@@ -586,39 +586,98 @@ function csvCell(v){
   const s=String(v??'').replace(/"/g,'""');
   return '"'+s+'"';
 }
-function exportExcel(){
-  const headers=['Giocatore','Squadra','Ruolo','Titolarità','Quotazione','FVM500','Stato asta','Prezzo pagato','Presenze 25/26','Media voto 25/26','Fantamedia 25/26','Rigorista','Note'];
-  const rows=[headers];
-  players.forEach(p=>{
-    const s=statsFor(p);
-    const pen=penLevel(p);
-    rows.push([
-      p.name,p.team,p.role,p.tit,p.quote,Math.round(p.fvm),
-      p.owner?(p.owner===currentUser?'MIO ('+currentUser+')':'PRESO DA '+p.owner):'LIBERO',
-      p.price||'',s?.pg25??'',s?.mv25??'',s?.fm25??'',
-      pen===1?'1° rigorista':pen===2?'Alternativa':'',
-      p.desc||''
-    ]);
-  });
+function exportCSV(){
+  const budget=Math.max(1,Number($('budget')?.value)||500);
+
+  const owners=[...new Set([
+    ...participants,
+    ...players.map(p=>p.owner).filter(Boolean).filter(x=>x!=='Altri')
+  ])];
+  if(players.some(p=>p.owner==='Altri')) owners.push('Altri');
+
+  const rows=[];
+  rows.push(['FANTAASTA 2026/27 - RIEPILOGO PER PARTECIPANTE']);
+  rows.push(['Data esportazione',new Date().toLocaleString('it-IT')]);
   rows.push([]);
-  rows.push(['RIEPILOGO ASTA']);
-  const spent=players.filter(p=>p.state==='mine').reduce((a,p)=>a+(Number(p.price)||0),0);
-  const budget=Math.max(1,Number($('budget').value)||500);
-  rows.push(['Budget',budget]);
-  rows.push(['Spesi',spent]);
-  rows.push(['Residui',Math.max(0,budget-spent)]);
-  rows.push(['Utente attivo',currentUser]); rows.push(['Giocatori acquistati',players.filter(p=>p.owner===currentUser).length]);
-  const csv='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+
+  owners.forEach(owner=>{
+    const bought=players
+      .filter(p=>p.owner===owner)
+      .sort((a,b)=>{
+        const order={P:1,D:2,C:3,A:4};
+        return (order[a.role]||9)-(order[b.role]||9) ||
+               (Number(b.price)||0)-(Number(a.price)||0) ||
+               a.name.localeCompare(b.name);
+      });
+
+    const spent=bought.reduce((s,p)=>s+(Number(p.price)||0),0);
+    const remaining=budget-spent;
+
+    rows.push(['PARTECIPANTE',owner]);
+    rows.push(['Budget iniziale',budget]);
+    rows.push(['Totale speso',spent]);
+    rows.push(['Credito residuo',remaining]);
+    rows.push(['Giocatori acquistati',bought.length]);
+    rows.push([]);
+
+    rows.push([
+      'Giocatore',
+      'Squadra',
+      'Ruolo',
+      'Prezzo pagato',
+      'Titolarità',
+      'Quotazione',
+      'FVM500',
+      'Presenze 25/26',
+      'Fantamedia 25/26',
+      'Media voto 25/26',
+      'Rigorista'
+    ]);
+
+    if(bought.length){
+      bought.forEach(p=>{
+        const st=getStats(p);
+        const pen=getPenalty(p);
+        rows.push([
+          p.name,
+          p.team,
+          p.role,
+          Number(p.price)||0,
+          p.start||'',
+          p.q||'',
+          p.fvm||'',
+          st?.pg25 ?? '',
+          st?.fm25 ?? '',
+          st?.mv25 ?? '',
+          pen?.primary ? '1° rigorista' : pen?.secondary ? 'Alternativa' : ''
+        ]);
+      });
+    }else{
+      rows.push(['Nessun giocatore acquistato']);
+    }
+
+    rows.push([]);
+    rows.push([]);
+  });
+
+  // Also append unassigned/free players count for completeness
+  const free=players.filter(p=>!p.owner).length;
+  rows.push(['RIEPILOGO GENERALE']);
+  rows.push(['Partecipanti',owners.length]);
+  rows.push(['Giocatori ancora liberi',free]);
+
+  const content='\uFEFF'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
   const d=new Date();
-  const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  a.download='FantaAsta_'+stamp+'.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const ds=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  a.href=URL.createObjectURL(blob);
+  a.download=`FantaAsta_Riepilogo_Partecipanti_${ds}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
 }
-document.getElementById('exportBtn')?.addEventListener('click',exportExcel);
+document.getElementById('exportBtn')?.addEventListener('click',exportCSV);
 
 
 async function forceAppRefresh(){
