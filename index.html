@@ -31,6 +31,17 @@ button{cursor:pointer}
 .titTit{background:#dcfce7;border-color:#86efac}.titT{background:#dbeafe;border-color:#93c5fd}.titB{background:#fef3c7;border-color:#fcd34d}.titR{background:#f1f5f9}
 .icons{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.feature{font-size:12px;background:#f8fafc;border:1px solid var(--line);border-radius:9px;padding:4px 6px}
 .quote{margin-top:5px;color:var(--muted);font-size:12px}
+.statsline{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.statpill{font-size:12px;font-weight:750;border-radius:9px;padding:5px 7px;border:1px solid var(--line);background:#fff}
+.presHigh{background:#ecfdf3;border-color:#86efac}
+.presMed{background:#fff7ed;border-color:#fdba74}
+.presLow{background:#fef2f2;border-color:#fca5a5}
+.fmGood{background:#eef2ff;border-color:#a5b4fc}
+.contLow{background:#ecfdf3;border-color:#86efac}
+.contMed{background:#fef3c7;border-color:#fcd34d}
+.contHigh{background:#fef2f2;border-color:#fca5a5}
+.presbar{height:5px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:5px;max-width:220px}
+.presbar>span{display:block;height:100%;background:#64748b;border-radius:999px}
 .actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.price{width:78px}
 .mineBtn{font-weight:700}.otherBtn{font-weight:700}
 .details{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;font-size:12px;color:#475467;display:none;line-height:1.4}
@@ -45,7 +56,7 @@ button{cursor:pointer}
 <body><main>
 <section class="hero">
   <h1>⚽ FantaAsta Smart 2026/27</h1>
-  <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p><div class="installbar"><button id="installBtn" class="installbtn">📲 Installa FantaAsta</button><span id="installHint" class="installhint"></span></div>
+  <p>Listone Classic • ruoli • titolarità • rigoristi • budget e tracker asta</p><div class="installbar"><button id="installBtn" class="installbtn">📲 Installa FantaAsta</button><button id="exportBtn" class="installbtn" style="display:inline-block">📥 Scarica Excel</button><button id="refreshBtn" class="installbtn" style="display:inline-block">🔄 Aggiorna app</button><span id="installHint" class="installhint"></span></div>
 </section>
 
 <section class="summary">
@@ -73,10 +84,36 @@ button{cursor:pointer}
 
 <script>
 const SOURCE='https://raw.githubusercontent.com/darioschioppi/fantacalcio-2026-27/refs/heads/master/excel_dario_data.js';
+const STATS_SOURCE='https://raw.githubusercontent.com/darioschioppi/fantacalcio-2026-27/refs/heads/master/statistiche_data.js';
 const PRIMARY={"Atalanta": ["Kessie", "Scamacca"], "Bologna": ["Orsolini"], "Cagliari": ["Nzola", "Fazzini"], "Como": ["Da Cunha"], "Fiorentina": ["Mastantuono", "Pellegrino M."], "Frosinone": ["Schmid"], "Genoa": ["Colombo"], "Inter": ["Calhanoglu"], "Juventus": ["Kolo Muani", "Locatelli", "Woltemade"], "Lazio": ["Zaccagni", "Taylor K.", "Pinamonti"], "Lecce": ["Geubbels"], "Milan": ["Ramos G.", "Pulisic"], "Monza": ["Pessina"], "Napoli": ["De Bruyne", "Hojlund"], "Parma": ["Tourè E.", "Toure E.", "El Bilal Toure"], "Roma": ["Dybala", "Malen"], "Sassuolo": ["Berardi"], "Torino": ["Vlasic"], "Udinese": ["Davis K."], "Venezia": ["Busio"]};
 const SECONDARY={"Atalanta": ["Samardzic", "Ederson D.S.", "De Ketelaere", "Krstovic"], "Bologna": ["Dovbyk", "Bernardeschi", "Ferguson"], "Cagliari": ["Borrelli", "Deiola", "Mina"], "Como": ["Kean", "Douvikas", "Paz N.", "Baturina"], "Fiorentina": ["Beto"], "Frosinone": ["Calò", "Calo", "Bobcek"], "Genoa": ["Messias", "Vitinha O.", "Baldanzi", "Ostigard"], "Inter": ["Zielinski", "Martinez L."], "Juventus": ["Yildiz"], "Lazio": ["Cataldi"], "Lecce": ["Stulic", "Pierotti", "Berisha"], "Milan": ["Modric"], "Monza": ["Cutrone"], "Napoli": ["Politano"], "Parma": ["Nesta Elphege", "Elphege"], "Roma": ["Pellegrini Lo.", "Soulè", "Soule", "Castro S."], "Sassuolo": ["Esposito Se.", "Laurientè", "Lauriente", "Bowie"], "Torino": ["Kulenovic", "Zapata", "Rodriguez R."], "Udinese": ["Solet", "Ekkelenkamp"], "Venezia": ["Rrahmani A.", "Adams A.", "Adorante"]};
 const $=id=>document.getElementById(id);
 let players=[];
+
+let statsMap=new Map();
+
+function parseStats(txt){
+ const start=txt.indexOf('const STATISTICHE_DATA =');
+ if(start<0) throw Error('Formato statistiche non riconosciuto');
+ const a=txt.indexOf('[',start), b=txt.lastIndexOf('];');
+ if(a<0||b<a) throw Error('Array statistiche non trovato');
+ return Function('"use strict";return '+txt.slice(a,b+1))();
+}
+function statKey(name){return norm(name)}
+function continuity(pg){
+ if(pg==null) return {label:'N/D',cls:''};
+ if(pg>=30) return {label:'Bassa',cls:'contLow'};
+ if(pg>=22) return {label:'Media',cls:'contMed'};
+ return {label:'Alta',cls:'contHigh'};
+}
+function presClass(pg){
+ if(pg==null) return '';
+ if(pg>=30) return 'presHigh';
+ if(pg>=22) return 'presMed';
+ return 'presLow';
+}
+function statsFor(p){ return statsMap.get(statKey(p.name)) || null; }
+
 
 function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
 function penLevel(p){
@@ -114,14 +151,29 @@ function save(){
  localStorage.setItem('fantaBudgetV2',String(Math.max(1,Number($('budget').value)||500)));
 }
 async function load(){
- let txt='';
+ let txt='', stxt='';
  try{
-   const r=await fetch(SOURCE,{cache:'no-store'}); if(!r.ok)throw Error();
+   const [r,sr]=await Promise.all([fetch(SOURCE,{cache:'no-store'}),fetch(STATS_SOURCE,{cache:'no-store'})]);
+   if(!r.ok) throw Error();
    txt=await r.text(); localStorage.setItem('fantaSmartDataV3',txt);
- }catch(e){txt=localStorage.getItem('fantaSmartDataV3')||''}
+   if(sr.ok){stxt=await sr.text(); localStorage.setItem('fantaStatsDataV4',stxt);}
+ }catch(e){
+   txt=localStorage.getItem('fantaSmartDataV3')||'';
+   stxt=localStorage.getItem('fantaStatsDataV4')||'';
+ }
  if(!txt){$('loading').textContent='⚠️ Dati non disponibili: apri una volta con internet';return}
  try{
-   players=parseData(txt); applySaved(); setupTeams(); render();
+   players=parseData(txt);
+   if(stxt){
+     try{
+       const raw=parseStats(stxt);
+       raw.forEach(x=>statsMap.set(statKey(x[0]),{
+         pg25:x[8],mv25:x[9],fm25:x[10],gol25:x[11],ass25:x[12],
+         histN:x[13],histMV:x[14],histFM:x[15]
+       }));
+     }catch(e){}
+   }
+   applySaved(); setupTeams(); render();
    $('loading').textContent='✅ '+players.length+' giocatori caricati';
  }catch(e){$('loading').textContent='⚠️ Errore lettura dati'}
 }
@@ -148,11 +200,26 @@ function render(){
    const penHtml=pen===1?'<span class="feature">🎯 1° rigorista</span>':pen===2?'<span class="feature">🥈 alternativa rigori</span>':'';
    const piazzati=/piazzat|punizion|corner/i.test(p.desc)?'<span class="feature">🦶 piazzati</span>':'';
    const cons=/consigliat|puntare|prendere ad occhi chiusi/i.test(p.desc)&&!/sconsigliat/i.test(p.desc)?'<span class="feature">⭐ interessante</span>':'';
+   const s=statsFor(p);
+   let statsHtml='';
+   if(s && s.pg25!=null){
+     const pct=Math.max(0,Math.min(100,Math.round((Number(s.pg25)/38)*100)));
+     const c=continuity(Number(s.pg25));
+     statsHtml=`<div class="statsline">
+       <span class="statpill ${presClass(Number(s.pg25))}">🎮 ${s.pg25} pres. 25/26</span>
+       ${s.fm25!=null?`<span class="statpill fmGood">⭐ FM ${Number(s.fm25).toFixed(2)}</span>`:''}
+       ${s.mv25!=null?`<span class="statpill">📊 MV ${Number(s.mv25).toFixed(2)}</span>`:''}
+       <span class="statpill ${c.cls}">🩹 stop/disponibilità: ${c.label}</span>
+     </div><div class="presbar" title="${pct}% delle 38 giornate con voto/presenza"><span style="width:${pct}%"></span></div>`;
+   }else{
+     statsHtml='<div class="statsline"><span class="statpill">📊 25/26: dati Serie A non disponibili</span></div>';
+   }
    el.innerHTML=`<div class="row">
     <div class="info">
       <div class="nameLine"><span class="name">${esc(p.name)}</span><span class="badge role r${p.role.toLowerCase()}">${roleIcon(p.role)} ${p.role}</span><span class="badge ${titClass(p.tit)}">${titIcon(p.tit)} ${esc(p.tit)}</span></div>
       <div class="icons">${penHtml}${piazzati}${cons}<span class="feature">🏷️ Qt ${p.quote}</span><span class="feature">📊 FVM500 ${Math.round(p.fvm)}</span></div>
       <div class="quote">${esc(p.team)} · ${status}${p.price?' · pagato '+p.price+' cr':''}</div>
+      ${statsHtml}
     </div>
     <div class="actions">
       <input class="price" type="number" min="0" placeholder="Prezzo" value="${p.price||''}" aria-label="Prezzo ${esc(p.name)}">
@@ -162,7 +229,7 @@ function render(){
       <button class="detailsBtn" data-detail="1">ℹ️</button>
     </div>
    </div>
-   <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${p.mv!=null?' · <b>MV 25/26:</b> '+p.mv:''}${p.fm!=null?' · <b>FM 25/26:</b> '+p.fm:''}</div>`;
+   <div class="details"><b>Valutazione:</b> ${esc(p.desc||'Nessuna nota disponibile.')}<br><b>Età:</b> ${p.age??'—'}${s&&s.pg25!=null?' · <b>Presenze 25/26:</b> '+s.pg25+'/38':''}${s&&s.fm25!=null?' · <b>Fantamedia 25/26:</b> '+Number(s.fm25).toFixed(2):''}<br><span style="font-size:11px">🩹 L'indicatore stop/disponibilità è un proxy basato sulle presenze 2025/26: non è uno storico medico degli infortuni.</span></div>`;
    const price=el.querySelector('.price');
    el.querySelectorAll('[data-a]').forEach(btn=>btn.addEventListener('click',()=>{p.state=btn.dataset.a;p.price=Math.max(0,Number(price.value)||0);save();render()}));
    price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
@@ -174,6 +241,67 @@ function render(){
 ['search','role','team','tit','state'].forEach(id=>$(id).addEventListener('input',render));
 $('budget').addEventListener('input',()=>{save();summary()});
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+
+function csvCell(v){
+  const s=String(v??'').replace(/"/g,'""');
+  return '"'+s+'"';
+}
+function exportExcel(){
+  const headers=['Giocatore','Squadra','Ruolo','Titolarità','Quotazione','FVM500','Stato asta','Prezzo pagato','Presenze 25/26','Media voto 25/26','Fantamedia 25/26','Rigorista','Note'];
+  const rows=[headers];
+  players.forEach(p=>{
+    const s=statsFor(p);
+    const pen=penLevel(p);
+    rows.push([
+      p.name,p.team,p.role,p.tit,p.quote,Math.round(p.fvm),
+      p.state==='mine'?'MIO':p.state==='other'?'PRESO DA ALTRI':'LIBERO',
+      p.price||'',s?.pg25??'',s?.mv25??'',s?.fm25??'',
+      pen===1?'1° rigorista':pen===2?'Alternativa':'',
+      p.desc||''
+    ]);
+  });
+  rows.push([]);
+  rows.push(['RIEPILOGO ASTA']);
+  const spent=players.filter(p=>p.state==='mine').reduce((a,p)=>a+(Number(p.price)||0),0);
+  const budget=Math.max(1,Number($('budget').value)||500);
+  rows.push(['Budget',budget]);
+  rows.push(['Spesi',spent]);
+  rows.push(['Residui',Math.max(0,budget-spent)]);
+  rows.push(['Giocatori acquistati',players.filter(p=>p.state==='mine').length]);
+  const csv='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const d=new Date();
+  const stamp=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  a.download='FantaAsta_'+stamp+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+document.getElementById('exportBtn')?.addEventListener('click',exportExcel);
+
+
+async function forceAppRefresh(){
+  const b=document.getElementById('refreshBtn');
+  if(b){b.textContent='⏳ Aggiorno…';b.disabled=true;}
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const reg of regs){ try{await reg.update();}catch(e){} }
+    }
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    const u=new URL(location.href);
+    u.searchParams.set('refresh',Date.now().toString());
+    location.replace(u.toString());
+  }catch(e){
+    if(b){b.textContent='⚠️ Riprova';b.disabled=false;}
+  }
+}
+document.getElementById('refreshBtn')?.addEventListener('click',forceAppRefresh);
 
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',(e)=>{
