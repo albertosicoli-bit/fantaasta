@@ -62,6 +62,18 @@ button{cursor:pointer}
 .userSelect{font-weight:800}
 .ownerSelect{min-width:120px}
 
+
+.roleSummary{background:#fff;border:1px solid var(--line);border-radius:15px;padding:11px;margin:10px 0}
+.roleSummaryHead{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.roleTabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.roleTabs button.active{outline:2px solid #111;font-weight:900}
+.roleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px}
+.ownerCard{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fafafa}
+.ownerTitle{font-weight:900;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+.ownerPlayers{font-size:12px;line-height:1.45}
+.ownerPlayer{padding:4px 0;border-top:1px dashed #ddd}
+.ownerPlayer:first-child{border-top:0}
+
 </style>
 </head>
 <body><main>
@@ -94,6 +106,24 @@ button{cursor:pointer}
     <button id="addParticipant">Aggiungi</button>
   </div>
   <div id="participantList" class="partList"></div>
+</section>
+
+
+<section class="roleSummary">
+  <div class="roleSummaryHead">
+    <div>
+      <div class="label">👥 Riepilogo partecipanti per ruolo</div>
+      <div class="muted">Vedi chi ha preso i giocatori di ogni ruolo e quanto ha speso.</div>
+    </div>
+  </div>
+  <div class="roleTabs">
+    <button type="button" data-role-summary="P">🧤 Portieri</button>
+    <button type="button" data-role-summary="D">🛡️ Difensori</button>
+    <button type="button" data-role-summary="C">🎛️ Centrocampisti</button>
+    <button type="button" data-role-summary="A">⚡ Attaccanti</button>
+    <button type="button" data-role-summary="ALL">Tutti</button>
+  </div>
+  <div id="roleSummaryGrid" class="roleGrid"></div>
 </section>
 
 <div class="legend">
@@ -154,16 +184,69 @@ function renderParticipants(){
       const n=b.dataset.rm;
       participants=participants.filter(x=>x!==n);
       players.forEach(p=>{ if(p.owner===n){p.owner='Altri';p.state='other';} });
-      saveParticipants(); save(); renderParticipants(); render();
+      saveParticipants(); save(); renderParticipants(); render(); setupRoleSummary();
     }));
   }
 }
+
+let summaryRole='P';
+
+function roleLabel(r){
+  return r==='P'?'🧤 Portieri':r==='D'?'🛡️ Difensori':r==='C'?'🎛️ Centrocampisti':r==='A'?'⚡ Attaccanti':'Tutti i ruoli';
+}
+
+function renderRoleSummary(){
+  const grid=$('roleSummaryGrid');
+  if(!grid) return;
+
+  document.querySelectorAll('[data-role-summary]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.roleSummary===summaryRole);
+  });
+
+  const owners=[...new Set([
+    ...participants,
+    ...players.map(p=>p.owner).filter(Boolean).filter(x=>x!=='Altri')
+  ])];
+
+  // Include generic "Altri" only if actually used.
+  if(players.some(p=>p.owner==='Altri')) owners.push('Altri');
+
+  const cards=owners.map(owner=>{
+    const bought=players
+      .filter(p=>p.owner===owner && (summaryRole==='ALL' || p.role===summaryRole))
+      .sort((a,b)=>(Number(b.price)||0)-(Number(a.price)||0) || a.name.localeCompare(b.name));
+
+    const spent=bought.reduce((s,p)=>s+(Number(p.price)||0),0);
+
+    const rows=bought.length
+      ? bought.map(p=>`<div class="ownerPlayer"><b>${esc(p.name)}</b> <span class="muted">${esc(p.team)}</span>${p.price?` · ${Number(p.price)} cr`:''}</div>`).join('')
+      : `<div class="muted">Nessun giocatore</div>`;
+
+    return `<div class="ownerCard">
+      <div class="ownerTitle"><span>👤 ${esc(owner)}</span><span>${bought.length} · ${spent} cr</span></div>
+      <div class="ownerPlayers">${rows}</div>
+    </div>`;
+  }).join('');
+
+  grid.innerHTML = cards || `<div class="muted">Nessun acquisto registrato.</div>`;
+}
+
+function setupRoleSummary(){
+  document.querySelectorAll('[data-role-summary]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      summaryRole=b.dataset.roleSummary;
+      renderRoleSummary();
+    });
+  });
+  renderRoleSummary();
+}
+
 function addParticipant(){
   const inp=$('newParticipant'); if(!inp) return;
   const n=inp.value.trim();
   if(!n) return;
   if(!participants.some(x=>norm(x)===norm(n))) participants.push(n);
-  inp.value=''; saveParticipants(); renderParticipants(); render();
+  inp.value=''; saveParticipants(); renderParticipants(); render(); renderRoleSummary();
 }
 
 
@@ -332,7 +415,7 @@ function render(){
        if(!who) return;
        p.owner=who;p.state=(who===currentUser?'mine':'other');
      }else if(a==='available'){p.owner='';p.state='available';p.price=0;}
-     save();render();
+     save();render();renderRoleSummary();
    }));
    price.addEventListener('change',()=>{p.price=Math.max(0,Number(price.value)||0);save();summary()});
    el.querySelector('[data-detail]').addEventListener('click',()=>el.classList.toggle('open'));
@@ -346,7 +429,7 @@ $('budget').addEventListener('input',()=>{save();summary()});
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render();
+ currentUser=e.target.value; saveParticipants(); render(); renderRoleSummary();
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
@@ -401,7 +484,7 @@ async function forceAppRefresh(){
 loadParticipants();
 renderParticipants();
 document.getElementById('currentUser')?.addEventListener('change',e=>{
- currentUser=e.target.value; saveParticipants(); render();
+ currentUser=e.target.value; saveParticipants(); render(); renderRoleSummary();
 });
 document.getElementById('addParticipant')?.addEventListener('click',addParticipant);
 document.getElementById('newParticipant')?.addEventListener('keydown',e=>{if(e.key==='Enter')addParticipant();});
