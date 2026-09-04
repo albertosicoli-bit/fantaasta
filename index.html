@@ -169,6 +169,13 @@ button{cursor:pointer}
   z-index:10001;
 }
 
+
+.sortTools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
+.sortLabel{font-size:12px;font-weight:800;color:#667085}
+.sortBtn{min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:800;cursor:pointer}
+.sortBtn.active{outline:2px solid #111827;background:#f8fafc}
+.sortReset{font-weight:700;color:#667085}
+
 </style>
 </head>
 <body>
@@ -222,7 +229,14 @@ button{cursor:pointer}
  <select id="state"><option value="available">🟢 Disponibili</option><option value="mine">✅ Miei</option><option value="other">❌ Presi da altri</option><option value="all">Tutti</option></select>
 </section>
 
-<div class="meta"><span id="loading">Caricamento dati…</span> · <span id="shown">0</span> risultati</div>
+<div class="meta">
+<div class="sortTools">
+  <span class="sortLabel">↕️ Ordina:</span>
+  <button type="button" id="sortGoals" class="sortBtn">⚽ Gol fatti</button>
+  <button type="button" id="sortFMAsc" class="sortBtn">⭐ FM crescente</button>
+  <button type="button" id="sortDefault" class="sortBtn sortReset">↩ Default</button>
+</div>
+<span id="loading">Caricamento dati…</span> · <span id="shown">0</span> risultati</div>
 <div id="list"></div>
 <div class="notice">Le gerarchie (in particolare rigoristi e titolarità) possono cambiare. I dati dell'asta vengono salvati localmente sul dispositivo. Alla prima apertura serve internet; poi l'app conserva i dati scaricati.</div>
 
@@ -495,10 +509,35 @@ function summary(){
  $('spent').textContent=spent+' cr'; $('remaining').textContent=Math.max(0,b-spent)+' cr';
  $('mycount').textContent=players.filter(p=>p.owner===currentUser).length;
 }
+let playerSortMode='default';
+
 function render(){
+ document.querySelectorAll('.sortBtn').forEach(b=>b.classList.remove('active'));
+ if(playerSortMode==='goals') document.getElementById('sortGoals')?.classList.add('active');
+ if(playerSortMode==='fmAsc') document.getElementById('sortFMAsc')?.classList.add('active');
  const q=norm($('search').value), rr=$('role').value, tt=$('team').value, ti=$('tit').value, st=$('state').value;
  let rows=players.filter(p=>(!q||norm(p.name+' '+p.team).includes(q))&&(!rr||p.role===rr)&&(!tt||p.team===tt)&&(!ti||p.tit===ti)&&(st==='all'||(st==='available'&&!p.owner)||(st==='mine'&&p.owner===currentUser)||(st==='other'&&p.owner&&p.owner!==currentUser)));
- rows.sort((a,b)=>b.fvm-a.fvm||b.quote-a.quote||a.name.localeCompare(b.name));
+ if(playerSortMode==='goals'){
+   rows.sort((a,b)=>{
+     const sa=statsFor(a), sb=statsFor(b);
+     const ga=sa?.gol25, gb=sb?.gol25;
+     if(ga==null && gb==null) return b.fvm-a.fvm;
+     if(ga==null) return 1;
+     if(gb==null) return -1;
+     return Number(gb)-Number(ga) || (Number(sb?.fm25)||0)-(Number(sa?.fm25)||0) || b.fvm-a.fvm;
+   });
+ }else if(playerSortMode==='fmAsc'){
+   rows.sort((a,b)=>{
+     const sa=statsFor(a), sb=statsFor(b);
+     const fa=sa?.fm25, fb=sb?.fm25;
+     if(fa==null && fb==null) return b.fvm-a.fvm;
+     if(fa==null) return 1;
+     if(fb==null) return -1;
+     return Number(fa)-Number(fb) || (Number(sb?.gol25)||0)-(Number(sa?.gol25)||0) || b.fvm-a.fvm;
+   });
+ }else{
+   rows.sort((a,b)=>b.fvm-a.fvm);
+ }
  $('shown').textContent=rows.length; $('list').innerHTML='';
  if(!rows.length){$('list').innerHTML='<div class="empty">Nessun giocatore trovato.</div>';summary();return}
  for(const p of rows){
@@ -754,6 +793,20 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape') closeAuctionSummary();
+});
+
+
+document.getElementById('sortGoals')?.addEventListener('click',()=>{
+  playerSortMode='goals';
+  render();
+});
+document.getElementById('sortFMAsc')?.addEventListener('click',()=>{
+  playerSortMode='fmAsc';
+  render();
+});
+document.getElementById('sortDefault')?.addEventListener('click',()=>{
+  playerSortMode='default';
+  render();
 });
 
 load();
